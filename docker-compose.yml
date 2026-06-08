@@ -1,0 +1,18 @@
+services:
+  prefect-worker:
+    image: prefecthq/prefect:2-python3.10
+    container_name: prefect-worker
+    restart: unless-stopped
+    environment:
+      - PREFECT_API_URL=https://api.prefect.cloud/api/accounts/${PREFECT_ACCOUNT_ID}/workspaces/${PREFECT_WORKSPACE_ID}
+      - PREFECT_API_KEY=${PREFECT_API_KEY}
+    volumes:
+      - ./requirements.txt:/requirements.txt
+      - ./flows:/flows
+    command: >
+      bash -c "pip install --no-cache-dir -r /requirements.txt && 
+      prefect worker start --pool 'armbian-server-pool' --type 'process'"
+    deploy:
+      resources:
+        limits:
+          memory: 500M
