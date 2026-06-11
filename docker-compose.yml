@@ -1,18 +1,37 @@
 services:
+  postgres:
+    image: postgres:15
+    container_name: prefect-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: prefect
+      POSTGRES_PASSWORD: prefect
+      POSTGRES_DB: prefect
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  prefect-server:
+    image: prefecthq/prefect:3-latest
+    container_name: prefect-server
+    command: prefect server start --host 0.0.0.0 --port 4200
+    restart: unless-stopped
+    ports:
+      - "4200:4200"
+    environment:
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+    depends_on:
+      - postgres
+
   prefect-worker:
-    image: prefecthq/prefect:2-python3.10
+    image: prefecthq/prefect:3-latest
     container_name: prefect-worker
+    command: prefect worker start --pool local-pool --type process
     restart: unless-stopped
     environment:
-      - PREFECT_API_URL=https://api.prefect.cloud/api/accounts/${PREFECT_ACCOUNT_ID}/workspaces/${PREFECT_WORKSPACE_ID}
-      - PREFECT_API_KEY=${PREFECT_API_KEY}
-    volumes:
-      - ./requirements.txt:/requirements.txt
-      - ./flows:/flows
-    command: >
-      bash -c "pip install --no-cache-dir -r /requirements.txt && 
-      prefect worker start --pool 'armbian-server-pool' --type 'process'"
-    deploy:
-      resources:
-        limits:
-          memory: 500M
+      PREFECT_API_URL: http://prefect-server:4200/api
+    depends_on:
+      - prefect-server
+
+volumes:
+  postgres_data:
